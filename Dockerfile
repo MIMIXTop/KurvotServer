@@ -1,28 +1,17 @@
-FROM python:3.13-slim AS builder
-WORKDIR /app
+FROM python:3.13-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-COPY pyproject.toml .
-
-RUN pip install --no-cache-dir --user .
-
-FROM python:3.13-slim AS runner
+RUN groupadd -r appgroup && useradd -r -g appgroup -m appuser
 
 WORKDIR /app
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PATH="/home/appuser/.local/bin:${PATH}"
+COPY requirements.txt .
 
-RUN groupadd -r appgroup && useradd -r -g appgroup -m appuser
+RUN pip install --no-cache-dir -r requirements.txt
 
-COPY --from=builder /root/.local /home/appuser/.local
+COPY --chown=appuser:appgroup app/ ./app/
 
-COPY . .
-
-RUN chown -R appuser:appgroup /app
 USER appuser
-
-CMD [ "python", "-m", "app.main" ]
+CMD ["python", "-m", "app.main"]
