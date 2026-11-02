@@ -1,20 +1,17 @@
 {% extends "index.html" %}
 
-{% block title %}Dashboard | Observability & Roles{% endblock %}
+{% block title %}Kurvot | Docker Logs{% endblock %}
 
 {% block content %}
   {% include "tabs/logs.html" %}
-  {% include "tabs/users.html" %}
-  {% include "tabs/roles.html" %}
 {% endblock %}
 
 {% block extra_js %}
 <script>
-  // Контекст сервера для JS: путь WebSocket с логами и роль оператора
+  // Пути API dashboard.
   window.APP_CONFIG = {
     wsPath: "{{ url_for('ws_logs').path }}",
-    containersPath: "{{ url_for('containers').path }}",
-    currentRole: "{{ current_user.role }}"
+    containersPath: "{{ url_for('containers').path }}"
   };
 </script>
 {% endblock %}

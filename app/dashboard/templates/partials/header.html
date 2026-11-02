@@ -1,10 +1,7 @@
 <header class="header">
   <div class="status-indicator">
     <div class="status-dot"></div>
-    <span>Cluster: <strong>{{ cluster_name | default('prod-eu-west') }}</strong></span>
+    <span>Docker Engine подключён</span>
   </div>
-  <div class="user-info">
-    <span>Оператор: <strong>{{ current_user.username }}</strong></span>
-    <span class="role-badge">{{ current_user.role }}</span>
-  </div>
+  <span class="header-caption">Live stdout / stderr</span>
 </header>

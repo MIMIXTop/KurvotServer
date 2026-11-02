@@ -15,6 +15,23 @@ let currentContainer = null;
 let socket = null;
 let reconnectTimer = null;
 
+function parseLogEntry(entry) {
+  const rawMessage = String(entry.msg ?? '');
+  const match = rawMessage.match(
+    /^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+\|\s*([A-Z]+)\s+\|\s*([^|]+?)\s+\|\s?(.*)$/s
+  );
+
+  if (!match) return entry;
+
+  return {
+    ...entry,
+    time: match[1],
+    level: match[2],
+    name: match[3].trim(),
+    msg: match[4]
+  };
+}
+
 function renderLogs() {
   const sFilter = document.getElementById('serviceFilter').value;
   const lFilter = document.getElementById('levelFilter').value;
@@ -26,7 +43,8 @@ function renderLogs() {
   const filtered = logBuffer.filter(l => {
     const matchService = sFilter === 'ALL' || l.name === sFilter;
     const matchLevel = lFilter === 'ALL' || l.level === lFilter;
-    const matchSearch = l.msg.toLowerCase().includes(search) || l.name.toLowerCase().includes(search);
+    const matchSearch = [l.time, l.level, l.name, l.msg]
+      .some(value => String(value ?? '').toLowerCase().includes(search));
     return matchService && matchLevel && matchSearch;
   });
 
@@ -77,7 +95,7 @@ function pushSystem(level, msg) {
   const last = logBuffer[logBuffer.length - 1];
   if (last && last.name === 'docker' && last.msg === msg) return;
 
-  logBuffer.push({ time: nowTime(), level: level, name: 'docker', msg: msg });
+  logBuffer.push(parseLogEntry({ time: nowTime(), level: level, name: 'docker', msg: msg }));
   if (logBuffer.length > 1000) logBuffer.shift();
   ensureServiceOption('docker');
   renderLogs();
@@ -176,8 +194,8 @@ function connectLogs() {
 
   socket.onmessage = (event) => {
     try {
-      // Формат: { "time": "19:12:03", "level": "INFO", "name": "api.gateway", "msg": "..." }
-      const logEntry = JSON.parse(event.data);
+      // Формат: { "time": "...", "level": "INFO", "name": "container", "msg": "..." }
+      const logEntry = parseLogEntry(JSON.parse(event.data));
       if (!logEntry || typeof logEntry.msg !== 'string') return;
 
       ensureServiceOption(logEntry.name);
@@ -201,11 +219,6 @@ function connectLogs() {
       connectLogs();
     }, 3000);
   };
-}
-
-// Заглушка: правка пользователя ещё не реализована
-function editUser(id) {
-  pushSystem('INFO', `Редактирование пользователя #${id} — пока не реализовано`);
 }
 
 document.addEventListener("DOMContentLoaded", () => {

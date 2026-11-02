@@ -31,29 +31,7 @@ async def home(request: Request):
     return templates.TemplateResponse(
         request,
         "dashboard.html",
-        {
-            "request": request,
-            "cluster_name": "prod-eu-west-01",
-            "current_user": {"username": "root_admin", "role": "Cluster Administrator", "permissions": ["admin"]},
-            "available_services": ["api.gateway", "auth.service", "telegram.agent"],
-            "users": [
-                {"id": 1, "username": "alex_dev", "email": "alex@org.io", "role": "Bot Dev",
-                 "allowed_services": ["telegram.agent"]},
-                {"id": 2, "username": "sec_ops", "email": "sec@org.io", "role": "Sec Auditor",
-                 "allowed_services": ["auth.service", "api.gateway"]},
-            ],
-            "roles": [
-                {
-                    "title": "Telegram Bot Developer",
-                    "slug": "tg-dev",
-                    "description": "Отладка агента и интеграций бота",
-                    "permissions": [
-                        {"label": "Чтение telegram.agent", "granted": True},
-                        {"label": "Чтение auth.service", "granted": False}
-                    ]
-                }
-            ]
-        }
+        {"request": request}
     )
 
 
