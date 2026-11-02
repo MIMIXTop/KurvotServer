@@ -1,0 +1,36 @@
+<section id="tab-users" class="tab">
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Email</th>
+          <th>Роль</th>
+          <th>Разрешенные логи</th>
+          <th>Действия</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td><strong>{{ u.username }}</strong></td>
+          <td>{{ u.email }}</td>
+          <td><span class="badge">{{ u.role }}</span></td>
+          <td>
+            {% for s in u.allowed_services %}
+              <code>{{ s }}</code>{% if not loop.last %}, {% endif %}
+            {% endfor %}
+          </td>
+          <td>
+            {% if "admin" in current_user.permissions %}
+              <button class="btn btn-secondary" onclick="editUser('{{ u.id }}')">Правка</button>
+            {% else %}
+              <span class="text-muted">Только чтение</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>

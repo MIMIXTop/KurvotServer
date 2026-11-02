@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Kurvot{% endblock %}</title>
+
+    <link rel="stylesheet" href="{{ url_for('dashboard_static', file_path='css/dashboard.css').path }}">
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+{% include "partials/sidebar.html" %}
+
+<div class="main">
+    {% include "partials/header.html" %}
+
+    <div class="content">
+        {% block content %}{% endblock %}
+    </div>
+</div>
+
+<script src="{{ url_for('dashboard_static', file_path='js/dashboard.js').path }}"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

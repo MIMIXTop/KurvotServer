@@ -18,6 +18,9 @@ class Settings(BaseSettings):
 
     SECRET_KEY: str
 
+    # контейнер, логи которого показывает дашборд, если в запросе не передан
+    LOGS_CONTAINER: str = ""
+
     model_config = SettingsConfigDict(
         env_file=os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env")
     )

@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 
 from app.auth.router import auth
 from app.google_api.router import google_api
+from app.dashboard.routs import dashboard
 from app.database.database import engine
 from app.database.models import Base
 
@@ -37,5 +38,7 @@ app = FastAPI(lifespan=lifespan)
 app.include_router(auth)
 app.include_router(google_api)
 
+app.include_router(dashboard)
+
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8080, reload=True)

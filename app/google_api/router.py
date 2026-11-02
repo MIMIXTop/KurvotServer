@@ -178,12 +178,6 @@ async def _proxy(
         extra_query=extra_query,
     )
     body = await request.body()
-    logger.info(
-        "→ %s %s | body: %s",
-        request.method,
-        target,
-        _truncate(body) if body else "<empty>",
-    )
     try:
         result = await GoogleApiClient().request(
             request.method,

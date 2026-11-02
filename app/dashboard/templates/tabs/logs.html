@@ -1,0 +1,30 @@
+<section id="tab-logs" class="tab active">
+  <div class="toolbar">
+    <select id="containerFilter" onchange="onContainerChange()" title="Контейнер для чтения логов">
+      <option value="">Контейнер…</option>
+    </select>
+
+    <select id="serviceFilter" onchange="applyFilters()">
+      <option value="ALL">Все сервисы (All)</option>
+      {% for service in available_services %}
+        <option value="{{ service }}">{{ service }}</option>
+      {% endfor %}
+    </select>
+
+    <select id="levelFilter" onchange="applyFilters()">
+      <option value="ALL">Все уровни</option>
+      <option value="DEBUG">DEBUG</option>
+      <option value="INFO">INFO</option>
+      <option value="WARNING">WARNING</option>
+      <option value="ERROR">ERROR</option>
+    </select>
+
+    <input type="text" id="searchLog" placeholder="Поиск по message / logger name..." style="flex: 1;" oninput="applyFilters()">
+
+    <button id="liveTailBtn" class="btn btn-toggle active" onclick="toggleLiveTail()">🟢 Live Stream</button>
+    <button class="btn btn-secondary" onclick="clearLogs()">Очистить</button>
+  </div>
+
+  <div class="log-viewer-container" id="logTerminal">
+  </div>
+</section>
