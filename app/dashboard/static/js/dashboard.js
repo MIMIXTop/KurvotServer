@@ -6,6 +6,7 @@ function switchTab(tabId, btnElement) {
   const targetTab = document.getElementById(`tab-${tabId}`);
   if (targetTab) targetTab.classList.add('active');
   if (btnElement) btnElement.classList.add('active');
+  if (tabId === 'users') loadUsers();
 }
 
 // --- Буфер логов ---
@@ -64,6 +65,71 @@ function renderLogs() {
 
 function applyFilters() { renderLogs(); }
 function clearLogs() { logBuffer = []; renderLogs(); }
+
+function usersPath() {
+  return (window.APP_CONFIG && window.APP_CONFIG.usersPath) || '/dashboard/api/users';
+}
+
+function formatUserDate(value) {
+  if (!value) return '—';
+  return new Date(value).toLocaleString();
+}
+
+function setUsersError(message) {
+  const error = document.getElementById('usersError');
+  if (!error) return;
+  error.textContent = message;
+  error.hidden = !message;
+}
+
+function roleOptions(selected) {
+  return ['teacher', 'admin']
+    .map(role => `<option value="${role}" ${role === selected ? 'selected' : ''}>${role.toUpperCase()}</option>`)
+    .join('');
+}
+
+async function changeUserRole(email, role) {
+  try {
+    const response = await fetch(`${usersPath()}/${encodeURIComponent(email)}/role`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || `HTTP ${response.status}`);
+    await loadUsers();
+  } catch (error) {
+    setUsersError(`Не удалось изменить роль: ${error.message}`);
+  }
+}
+
+async function loadUsers() {
+  const body = document.getElementById('usersTableBody');
+  if (!body) return;
+  setUsersError('');
+  try {
+    const response = await fetch(usersPath());
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || `HTTP ${response.status}`);
+    body.innerHTML = data.length ? data.map(user => `
+      <tr>
+        <td>${escapeHtml(user.name || 'Без имени')}</td>
+        <td>${escapeHtml(user.email)}</td>
+        <td>
+          <select data-email="${escapeHtml(user.email)}" onchange="changeUserRole(this.dataset.email, this.value)">
+            ${roleOptions(user.role)}
+          </select>
+        </td>
+        <td><span class="user-status user-status-${escapeHtml(user.status)}">${escapeHtml(user.status)}</span></td>
+        <td>${user.telegram_linked ? 'Привязан' : 'Не привязан'}</td>
+        <td>${escapeHtml(formatUserDate(user.last_login_at))}</td>
+      </tr>
+    `).join('') : '<tr><td colspan="6">Пользователей пока нет</td></tr>';
+  } catch (error) {
+    body.innerHTML = '<tr><td colspan="6">Не удалось загрузить пользователей</td></tr>';
+    setUsersError(`Ошибка загрузки пользователей: ${error.message}`);
+  }
+}
 
 function toggleLiveTail() {
   liveTailActive = !liveTailActive;
@@ -224,4 +290,5 @@ function connectLogs() {
 document.addEventListener("DOMContentLoaded", () => {
   renderLogs();
   loadContainers();
+  loadUsers();
 });

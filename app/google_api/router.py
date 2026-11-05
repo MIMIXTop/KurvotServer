@@ -10,6 +10,7 @@ from fastapi.responses import Response
 
 from app.auth.google_client import GoogleOAuthClient, GoogleOAuthError
 from app.auth.repository import AuthRepository
+from app.database.models import AuthUsers
 from app.auth.token_manager import GoogleTokenManager
 from app.classroom.client import GoogleApiClient, GoogleApiProxyError, ProxyResponse
 from app.config import settings
@@ -82,7 +83,7 @@ def _token_manager(session: SessionDep) -> GoogleTokenManager:
     )
 
 
-async def _resolve_user_id(request: Request, session: SessionDep):
+async def _resolve_user(request: Request, session: SessionDep) -> AuthUsers:
     repository = AuthRepository(session)
     telegram_id = request.query_params.get("telegram_id")
     if telegram_id is not None:
@@ -101,7 +102,11 @@ async def _resolve_user_id(request: Request, session: SessionDep):
         )
     if user is None:
         raise HTTPException(status_code=401, detail="Authentication required")
-    return user.id
+    return user
+
+
+def _check_role_access(user: AuthUsers, service: GoogleService, path: str, method: str) -> None:
+    return
 
 
 def _build_target(
@@ -149,7 +154,9 @@ async def _proxy(
     default_query: tuple[str, str] | None = None,
     extra_query: list[tuple[str, str]] | None = None,
 ) -> Response:
-    user_id = await _resolve_user_id(request, session)
+    user = await _resolve_user(request, session)
+    _check_role_access(user, service, path, request.method)
+    user_id = user.id
     try:
         token = await _token_manager(session).get_valid_access_token(user_id)
     except (GoogleOAuthError, RuntimeError, LookupError) as exc:

@@ -79,11 +79,22 @@ async def start(request: Request, session: SessionDep ):
         key=settings.SESSION_COOKIE_NAME,
         value= random_token,
         httponly=True,
-        secure=True,
+        secure=settings.SESSION_COOKIE_SECURE,
         samesite="lax",
         max_age=300
     )
     return response
+
+
+@auth.get("/api/auth/telegram-role")
+async def get_telegram_role(telegram_id: int, session: SessionDep):
+    user = await AuthRepository(session).find_user_by_telegram_id(telegram_id)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Telegram user is not linked",
+        )
+    return {"role": user.user_role.value}
 
 
 @auth.get("/api/auth/google/callback")
@@ -142,7 +153,7 @@ setTimeout(() => {{ window.location.href = "tg://resolve?domain={bot_username}";
         key=settings.SESSION_COOKIE_NAME,
         value=result.session_token,
         httponly=True,
-        secure=True,
+        secure=settings.SESSION_COOKIE_SECURE,
         samesite="lax",
         max_age=30 * 24 * 60 * 60,
     )
@@ -245,7 +256,7 @@ async def logout(request: Request, session: SessionDep ):
         key=settings.SESSION_COOKIE_NAME,
         max_age=0,
         samesite="none",
-        secure=True,
+        secure=settings.SESSION_COOKIE_SECURE,
         path="/",
     )
     return response

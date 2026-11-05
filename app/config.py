@@ -15,6 +15,7 @@ class Settings(BaseSettings):
 
     TOKEN_ENCRYPTION_KEY: str
     SESSION_COOKIE_NAME: str
+    SESSION_COOKIE_SECURE: bool = False
 
     SECRET_KEY: str
 

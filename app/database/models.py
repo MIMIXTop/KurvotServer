@@ -14,10 +14,8 @@ class Base(DeclarativeBase):
     pass
 
 class UserRoles(Enum):
-    STUDENT = "student"
     TEACHER = "teacher"
     ADMIN = "admin"
-    PAPIK = "papik"
 
 class AppSessions(Base):
     __tablename__ = "app_sessions"
@@ -89,9 +87,14 @@ class AuthUsers(Base):
         DateTime(timezone=True),
     )
     user_role: Mapped[UserRoles] = mapped_column(
-        SQLEnum(UserRoles, name="user_role_enum", native_enum=False),
-        default=UserRoles.STUDENT,
-        server_default=text("'student'"),
+        SQLEnum(
+            UserRoles,
+            name="user_role_enum",
+            native_enum=False,
+            values_callable=lambda roles: [role.value for role in roles],
+        ),
+        default=UserRoles.TEACHER,
+        server_default=text("'teacher'"),
         nullable=False,
     )
 

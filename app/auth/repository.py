@@ -1,11 +1,17 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import AppSessions, AuthUsers, GoogleOAuthTokens, OAuthStates
+from app.database.models import (
+    AppSessions,
+    AuthUsers,
+    GoogleOAuthTokens,
+    OAuthStates,
+    UserRoles,
+)
 
 
 class AuthRepository:
@@ -67,6 +73,26 @@ class AuthRepository:
         )
         return result.scalar_one_or_none()
 
+    async def list_users(self) -> list[AuthUsers]:
+        result = await self.session.execute(
+            select(AuthUsers).order_by(AuthUsers.created_at.desc())
+        )
+        return list(result.scalars().all())
+
+    async def update_user_role_by_email(
+        self, email: str, role: UserRoles
+    ) -> Optional[AuthUsers]:
+        result = await self.session.execute(
+            select(AuthUsers).where(AuthUsers.email == email)
+        )
+        user = result.scalar_one_or_none()
+        if user is None:
+            return None
+        user.user_role = role
+        user.updated_at = datetime.now(timezone.utc)
+        await self.session.commit()
+        return user
+
     async def get_refresh_token(self, user_id) -> Optional[str]:
         result = await self.session.execute(
             select(GoogleOAuthTokens.refresh_token_enc).where(
@@ -118,6 +144,7 @@ class AuthRepository:
                 picture_url=picture,
                 telegram_id=telegram_id,
                 last_login_at=login_at,
+                user_role=UserRoles.TEACHER,
             )
             self.session.add(user)
             await self.session.flush()

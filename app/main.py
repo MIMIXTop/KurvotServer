@@ -7,6 +7,7 @@ from app.auth.router import auth
 from app.google_api.router import google_api
 from app.dashboard.routs import dashboard
 from app.database.database import engine
+from app.database.migrations import migrate_legacy_user_roles
 from app.database.models import Base
 
 
@@ -30,6 +31,7 @@ _configure_logging()
 async def lifespan(_: FastAPI):
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
+        await migrate_legacy_user_roles(connection)
     yield
     await engine.dispose()
 
