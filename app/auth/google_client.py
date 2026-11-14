@@ -1,5 +1,6 @@
 import asyncio
 import json
+import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
@@ -9,7 +10,19 @@ from app.auth.schemas import GoogleTokenResponse, GoogleUserInfo
 
 
 class GoogleOAuthError(RuntimeError):
-    pass
+    def __init__(
+        self,
+        message: str,
+        code: str | None = None,
+        description: str | None = None,
+    ) -> None:
+        self.code = code
+        self.description = description
+        super().__init__(message)
+
+
+class GoogleReauthRequired(GoogleOAuthError):
+    """The stored refresh token is expired, revoked or otherwise unusable."""
 
 
 @dataclass(frozen=True)
@@ -98,6 +111,29 @@ class GoogleOAuthClient:
             try:
                 with urllib.request.urlopen(http_request, timeout=15) as response:
                     result = json.loads(response.read())
+            except urllib.error.HTTPError as exc:
+                # The OAuth error body carries the real reason
+                # (invalid_grant, invalid_client, redirect_uri_mismatch...).
+                # urllib hides it behind a generic HTTPError, so read it here.
+                body = exc.read().decode("utf-8", errors="replace")
+                code = description = None
+                try:
+                    payload = json.loads(body)
+                except (TypeError, ValueError):
+                    payload = None
+                if isinstance(payload, dict):
+                    raw_code = payload.get("error")
+                    raw_description = payload.get("error_description")
+                    if isinstance(raw_code, str):
+                        code = raw_code
+                    if isinstance(raw_description, str):
+                        description = raw_description
+                reason = description or code or f"HTTP {exc.code}"
+                raise GoogleOAuthError(
+                    f"Google OAuth request failed: {reason}",
+                    code=code,
+                    description=description,
+                ) from exc
             except (OSError, ValueError) as exc:
                 raise GoogleOAuthError("Google OAuth request failed") from exc
             if not isinstance(result, dict):

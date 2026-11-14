@@ -107,6 +107,11 @@ class AuthRepository:
         )
         return result.scalar_one_or_none()
 
+    async def delete_google_tokens(self, user_id: UUID) -> None:
+        tokens = await self.get_google_tokens(user_id)
+        if tokens is not None:
+            await self.session.delete(tokens)
+
     async def update_google_tokens(
         self,
         user_id: UUID,

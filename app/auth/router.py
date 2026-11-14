@@ -1,4 +1,5 @@
 import html
+import ipaddress
 import urllib.parse
 from datetime import datetime, timezone
 
@@ -36,6 +37,16 @@ SCOPES = [
     "profile"
 ]
 
+def _is_private_host(host: str | None) -> bool:
+    if not host:
+        return False
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return address.is_private or address.is_loopback
+
+
 @auth.get("/api/auth/google/start")
 async def start(request: Request, session: SessionDep ):
     if settings.GOOGLE_CLIENT_ID is None or settings.GOOGLE_REDIRECT_URI is None:
@@ -72,6 +83,14 @@ async def start(request: Request, session: SessionDep ):
         "include_granted_scopes": "true",
         "prompt": "consent",
     }
+
+    # Google returns "device_id and device_name are required for private IP"
+    # when a LAN address is used as the redirect URI. Passing both lets the
+    # browser flow continue on the local network.
+    redirect_host = urllib.parse.urlparse(settings.GOOGLE_REDIRECT_URI).hostname
+    if _is_private_host(redirect_host):
+        params["device_id"] = settings.GOOGLE_DEVICE_ID or "kira-ai-assistant"
+        params["device_name"] = settings.GOOGLE_DEVICE_NAME
 
     redirect_url = f"{base_url}?{urllib.parse.urlencode(params)}"
     response = RedirectResponse(redirect_url, status_code=status.HTTP_302_FOUND)

@@ -8,7 +8,11 @@ from urllib.parse import quote, urlencode
 from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import Response
 
-from app.auth.google_client import GoogleOAuthClient, GoogleOAuthError
+from app.auth.google_client import (
+    GoogleOAuthClient,
+    GoogleOAuthError,
+    GoogleReauthRequired,
+)
 from app.auth.repository import AuthRepository
 from app.database.models import AuthUsers
 from app.auth.token_manager import GoogleTokenManager
@@ -159,8 +163,29 @@ async def _proxy(
     user_id = user.id
     try:
         token = await _token_manager(session).get_valid_access_token(user_id)
+    except GoogleReauthRequired as exc:
+        await session.rollback()
+        logger.warning(
+            "Google reauthorization required: user_id=%s code=%s reason=%s",
+            user_id,
+            exc.code,
+            exc.description,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=(
+                "Google authorization expired or was revoked. "
+                "Reconnect the Google account with /auth."
+            ),
+        ) from exc
     except (GoogleOAuthError, RuntimeError, LookupError) as exc:
         await session.rollback()
+        logger.error(
+            "Google token request failed: user_id=%s error_type=%s error=%s",
+            user_id,
+            type(exc).__name__,
+            exc,
+        )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Google token request failed",

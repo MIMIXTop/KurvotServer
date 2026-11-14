@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str
     GOOGLE_CLIENT_SECRET: str
     GOOGLE_REDIRECT_URI: str
+    # Google rejects an OAuth redirect URI that is a private IP unless
+    # device_id/device_name are present in the authorization request.
+    GOOGLE_DEVICE_ID: str = ""
+    GOOGLE_DEVICE_NAME: str = "KiraAIAssistant"
 
     TOKEN_ENCRYPTION_KEY: str
     SESSION_COOKIE_NAME: str
