@@ -1,0 +1,24 @@
+<section id="tab-users" class="tab">
+  <div class="users-toolbar">
+    <h2>Пользователи</h2>
+    <button class="btn btn-secondary" onclick="loadUsers()">Обновить</button>
+  </div>
+  <div id="usersError" class="dashboard-error" hidden></div>
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>Имя</th>
+          <th>Email</th>
+          <th>Роль</th>
+          <th>Статус</th>
+          <th>Telegram</th>
+          <th>Последний вход</th>
+        </tr>
+      </thead>
+      <tbody id="usersTableBody">
+        <tr><td colspan="6">Загрузка пользователей…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
