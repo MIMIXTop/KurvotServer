@@ -66,7 +66,10 @@ CLASSROOM = GoogleService("https://classroom.googleapis.com", "/v1")
 SHEETS = GoogleService("https://sheets.googleapis.com", "/v4/spreadsheets")
 DRIVE = GoogleService("https://www.googleapis.com", "/drive/v3")
 DRIVE_UPLOAD = GoogleService("https://www.googleapis.com", "/upload/drive/v3")
-FORMS = GoogleService("https://forms.googleapis.com", "/v1/forms")
+# The agent calls /api/forms/v1/forms/..., i.e. it already includes the Google
+# API path in the request. Prepending /v1/forms here produced
+# /v1/forms/v1/forms on forms.googleapis.com, so the prefix stays empty.
+FORMS = GoogleService("https://forms.googleapis.com", "")
 
 
 def _token_manager(session: SessionDep) -> GoogleTokenManager:
