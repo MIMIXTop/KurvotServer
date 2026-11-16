@@ -1,7 +1,10 @@
 import os
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+BASE_DIR = Path(__file__).resolve().parents[2]
+ENV_PATH = BASE_DIR / ".env"
 
 class Settings(BaseSettings):
     DB_HOST: str
@@ -26,8 +29,16 @@ class Settings(BaseSettings):
     # контейнер, логи которого показывает дашборд, если в запросе не передан
     LOGS_CONTAINER: str = ""
 
+    # Токен, которым Telegram-агент авторизует отправку логов в дашборд.
+    # Пустая строка полностью отключает приём логов агента.
+    AGENT_LOG_TOKEN: str = ""
+    # Имя виртуального источника логов агента в списке дашборда.
+    AGENT_LOG_SERVICE: str = "telegram-agent"
+
     model_config = SettingsConfigDict(
-        env_file=os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env")
+        env_file=ENV_PATH,
+        env_file_encoding="utf-8",
+        extra="ignore",
     )
 
 settings = Settings()

@@ -155,15 +155,15 @@ function nowTime() {
   return new Date().toTimeString().slice(0, 8);
 }
 
-// Сообщение самого дашборда (ошибки docker, статус подключения) —
+// Сообщение самого дашборда (ошибки Docker, статус подключения) —
 // дубликаты подряд не дублируем, чтобы не заливать терминал
 function pushSystem(level, msg) {
   const last = logBuffer[logBuffer.length - 1];
-  if (last && last.name === 'docker' && last.msg === msg) return;
+  if (last && last.name === 'dashboard' && last.msg === msg) return;
 
-  logBuffer.push(parseLogEntry({ time: nowTime(), level: level, name: 'docker', msg: msg }));
+  logBuffer.push(parseLogEntry({ time: nowTime(), level: level, name: 'dashboard', msg: msg }));
   if (logBuffer.length > 1000) logBuffer.shift();
-  ensureServiceOption('docker');
+  ensureServiceOption('dashboard');
   renderLogs();
 }
 
@@ -192,10 +192,11 @@ async function loadContainers() {
     if (!resp.ok) throw new Error(data.detail || `HTTP ${resp.status}`);
 
     const items = data.containers || [];
+    if (data.warning) pushSystem('WARNING', data.warning);
     select.innerHTML = '';
     if (!items.length) {
-      select.innerHTML = '<option value="">нет контейнеров</option>';
-      pushSystem('WARNING', 'Нет запущенных контейнеров — логи не приходят');
+      select.innerHTML = '<option value="">нет источников</option>';
+      pushSystem('WARNING', 'Нет доступных источников логов');
       return;
     }
 

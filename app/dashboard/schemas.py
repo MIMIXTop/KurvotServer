@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.database.models import UserRoles
 
@@ -19,3 +19,10 @@ class PublicUser(BaseModel):
 
 class UpdateUserRole(BaseModel):
     role: UserRoles
+
+
+class AgentLogBatch(BaseModel):
+    """A batch of formatted log records pushed by the Telegram agent."""
+
+    service: str = "telegram-agent"
+    lines: list[str] = Field(default_factory=list, max_length=200)

@@ -1,9 +1,10 @@
+import secrets
 from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.requests import Request
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from app.config import settings
@@ -11,8 +12,9 @@ from app.auth.dependencies import require_admin, require_admin_websocket
 from app.auth.repository import AuthRepository
 from app.database.database import SessionDep
 from app.database.models import AuthUsers
+from app.dashboard.agent_logs import agent_log_hub, parse_agent_log_line
 from app.dashboard.docker_logs import DEFAULT_TAIL, DockerError, list_containers, stream_logs
-from app.dashboard.schemas import PublicUser, UpdateUserRole
+from app.dashboard.schemas import AgentLogBatch, PublicUser, UpdateUserRole
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = (BASE_DIR / "static").resolve()
@@ -42,14 +44,59 @@ async def home(request: Request, _: AuthUsers = Depends(require_admin)):
 
 @dashboard.get("/api/containers")
 async def containers(_: AuthUsers = Depends(require_admin)):
-    """Список запущенных контейнеров для выбора источника логов."""
+    """Источники логов: агент с хоста + запущенные Docker-контейнеры."""
+    items: list[dict[str, str]] = []
+    warning: str | None = None
+
+    if settings.AGENT_LOG_TOKEN:
+        online = agent_log_hub.is_online()
+        items.append(
+            {
+                "id": settings.AGENT_LOG_SERVICE,
+                "name": settings.AGENT_LOG_SERVICE,
+                "image": "agent process on host",
+                "state": "running" if online else "offline",
+                "status": (
+                    "логи приходят с хоста"
+                    if online
+                    else "агент ещё не присылал логи"
+                ),
+            }
+        )
+
     try:
-        items = await list_containers()
+        items.extend(await list_containers())
     except DockerError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        warning = str(exc)
     except FileNotFoundError as exc:
-        raise HTTPException(status_code=503, detail="docker CLI не найден") from exc
-    return {"containers": items}
+        warning = str(exc) or "docker CLI не найден"
+
+    return {"containers": items, "warning": warning}
+
+
+@dashboard.post("/api/logs/ingest", status_code=204)
+async def ingest_agent_logs(
+    request: Request,
+    payload: AgentLogBatch,
+):
+    """Принимает логи Telegram-агента, работающего вне Docker."""
+    expected = settings.AGENT_LOG_TOKEN
+    if not expected:
+        raise HTTPException(status_code=503, detail="Agent log ingestion is disabled")
+
+    provided = request.headers.get("x-log-token", "")
+    if not secrets.compare_digest(
+        provided.encode("utf-8"), expected.encode("utf-8")
+    ):
+        raise HTTPException(status_code=401, detail="Invalid log token")
+
+    service = (payload.service or settings.AGENT_LOG_SERVICE)[:64]
+    # One request carries a small batch; ignore anything absurd.
+    for line in payload.lines[:200]:
+        if line.strip():
+            agent_log_hub.publish(parse_agent_log_line(service, line))
+
+    return Response(status_code=204)
 
 
 @dashboard.get("/api/users", response_model=list[PublicUser])
@@ -102,7 +149,12 @@ async def ws_logs(
     tail: int = DEFAULT_TAIL,
     _: AuthUsers = Depends(require_admin_websocket),
 ):
-    """Отдаёт stdout/stderr выбранного контейнера в реальном времени."""
+    """Отдаёт логи источника в реальном времени.
+
+    Для ``telegram-agent`` используется внутренняя шина: агент работает на
+    хосте и присылает записи через ``/api/logs/ingest``. Остальные имена —
+    Docker-контейнеры.
+    """
     await websocket.accept()
     target = (container or settings.LOGS_CONTAINER or "").strip()
 
@@ -111,14 +163,27 @@ async def ws_logs(
             {
                 "time": datetime.now().strftime("%H:%M:%S"),
                 "level": level,
-                "name": "docker",
+                "name": "dashboard",
                 "msg": message,
             }
         )
 
     try:
         if not target:
-            await notify("ERROR", "Не выбран контейнер для логов")
+            await notify("ERROR", "Не выбран источник логов")
+            return
+
+        if target == settings.AGENT_LOG_SERVICE:
+            queue = agent_log_hub.subscribe()
+            try:
+                # Сначала подписываемся, потом отдаём историю: строка,
+                # пришедшая между снимком и подпиской, не потеряется.
+                for entry in agent_log_hub.snapshot():
+                    await websocket.send_json(entry)
+                while True:
+                    await websocket.send_json(await queue.get())
+            finally:
+                agent_log_hub.unsubscribe(queue)
             return
 
         async for entry in stream_logs(target, tail=tail):
